@@ -578,5 +578,9 @@ GO
     
 ```
 
+##### 参数资料
+
+rabbitMQ动态队列实现参考：https://blog.csdn.net/kingvin_xm/article/details/86712613
+
 
 
