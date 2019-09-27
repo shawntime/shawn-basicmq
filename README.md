@@ -14,68 +14,9 @@
 * 封装了简单定时任务处理消息的重新入队
 * 解决消费端重复消费问题
 
-#### 使用方法
-
-*  Maven dependency:
-
-```
-<dependency>
-    <groupId>cn.com.autohome.tuan</groupId>
-    <artifactId>basicmq</artifactId>
-    <version>1.0-SNAPSHOT</version>
-    <exclusions>
-        <exclusion>
-            <groupId>cn.com.autohome.tuan.framework</groupId>
-            <artifactId>auto-framework</artifactId>
-        </exclusion>
-        <exclusion>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-autoconfigure</artifactId>
-        </exclusion>
-    </exclusions>
-</dependency>
-```
-
-* 包扫描配置类添加【cn.com.autohome.tuan.basic.dao】
-
-```
-static final String SCAN_PACKAGE = "com.autohome.dealer.tuan.mqconsumer.provider.dao.mapper." + DB_TGA + ",cn.com.autohome.tuan.basic.dao";
-Resource[] locationResources = resolver.getResources(mapperLocations);
-Resource[] mqResources = resolver.getResources("classpath:mapper/basicmq/MsgQueueErrorLogMapper.xml");
-List<Resource> resources = new ArrayList<>(locationResources.length + mqResources.length);
-resources.addAll(Arrays.asList(locationResources));
-resources.addAll(Arrays.asList(mqResources));
-sqlSessionFactoryBean.setMapperLocations(resources.stream().toArray(Resource[]::new));
-```
-
-* 加包扫描
-```
-@ComponentScan(basePackages = {"cn.com.autohome.tuan.basic", "cn.com.autohome.tuan.framework"})
-```
-
-* yml文件配置rabbitmq链接参数
-
-```
-spring:
-  rabbitmq:
-    base:
-      host: 127.0.0.1
-      port: 5672
-      username: admin
-      password: 123456
-      vhost: test
-      isOpenListener: true
-```
-
-> isOpenListener: 是否开启消费端，默认关闭
-
-* 如何需要开启组件自带的定时任务，则需要配置application.properties
-
-```
-openScheduledTask=true
-```
-
 #### 使用案例
+
+> 实现了零配置，无需关心配置细节，只需要关系自己的业务逻辑即可
 
 1）仅需要生产端
 
@@ -125,6 +66,57 @@ public class SmsMsgQueueService extends AbstractMsgQueueService<SmsEntity> {
 
 ++方法即可++
 
+#### 使用方法
+
+*  Maven dependency:
+
+```
+<dependency>
+    <groupId>com.shanwtime</groupId>
+    <artifactId>basicmq</artifactId>
+    <version>1.0-SNAPSHOT</version>
+</dependency>
+```
+
+* 包扫描配置类添加【com.shawntime.basic.dao】
+
+```
+static final String SCAN_PACKAGE = "com.shawntime.provider.dao.mapper." + DB_TGA + ",com.shawntime.basic.dao";
+Resource[] locationResources = resolver.getResources(mapperLocations);
+Resource[] mqResources = resolver.getResources("classpath:mapper/basicmq/MsgQueueErrorLogMapper.xml");
+List<Resource> resources = new ArrayList<>(locationResources.length + mqResources.length);
+resources.addAll(Arrays.asList(locationResources));
+resources.addAll(Arrays.asList(mqResources));
+sqlSessionFactoryBean.setMapperLocations(resources.stream().toArray(Resource[]::new));
+```
+
+* 加包扫描
+```
+@ComponentScan(basePackages = {"com.shawntime.basic")
+```
+
+* yml文件配置rabbitmq链接参数
+
+```
+spring:
+  rabbitmq:
+    base:
+      host: 127.0.0.1
+      port: 5672
+      username: admin
+      password: 123456
+      vhost: test
+      isOpenListener: true
+```
+
+> isOpenListener: 是否开启消费端，默认关闭
+
+* 如何需要开启组件自带的定时任务，则需要配置application.properties
+
+```
+openScheduledTask=true
+```
+
 ##### 旧项目的修改
 > 已经引入basicmq项目的实现类，需要重写以下两个方法
 > isAutoRegistry：是否自动注册
@@ -161,6 +153,234 @@ public class DingTalkService extends AbstractMsgQueueService<DingMessage> {
     @Override
     protected boolean isConfirmCallBack() {
         return false;
+    }
+}
+```
+
+#### 代码分析
+
+##### 生产端消息100%投递
+
+```
+@Override
+public void provide(String msgBodyJson, boolean isAsync, Map headMap) {
+    try {
+        logger.info("provide -> {}", msgBodyJson);
+        String correlationDataId = "";
+        if (isConfirmCallBack()) {
+            MessageData data = getMessageData(msgBodyJson);
+            redisClient.hset(Constant.queue_key, data.getId(), JsonHelper.serialize(data), -1);
+            correlationDataId = data.getId();
+        }
+        provideMessage(msgBodyJson, correlationDataId, headMap);
+    } catch (Throwable e) {
+        exceptionHandle(new MsgQueueBody(BasicOperatorEnum.PROVIDER, msgBodyJson), e, isAsync);
+    }
+}
+
+private MessageData getMessageData(String msgBodyJson) {
+    String id = UUID.randomUUID().toString();
+    MessageData data = new MessageData();
+    data.setCurrTime(System.currentTimeMillis());
+    data.setId(id);
+    data.setJsonData(msgBodyJson);
+    data.setTypeDesc(getMessageDesc());
+    data.setTypeId(getMessageType());
+    data.setOriginalId(0);
+    data.setBeanName(getSpringBeanName());
+    return data;
+}
+
+protected void provideMessage(String msgBodyJson,
+                                  String correlationDataId,
+                                  Map<String, Object> headMap) throws Throwable {
+    if (!isAutoRegistry()) {
+        provideMessage(msgBodyJson, correlationDataId);
+        return;
+    }
+    String exchangeName = getExchangeName();
+    String queueName = getQueueName();
+    MessagePostProcessor messagePostProcessor = message -> {
+        MessageProperties messageProperties = message.getMessageProperties();
+        if (MapExtensions.isNotEmpty(headMap)) {
+            headMap.forEach((key, value) -> {
+                messageProperties.setHeader(key, value);
+            });
+        }
+        messageProperties.setCorrelationId(correlationDataId.getBytes());
+        return message;
+    };
+    amqpProducer.publishMsg(exchangeName, queueName, msgBodyJson,
+            new CorrelationData(correlationDataId), messagePostProcessor);
+}
+```
+
+##### 发送端消息确认
+```
+@Component("confirmCallBackListener")
+public class ConfirmCallBackListener implements RabbitTemplate.ConfirmCallback {
+
+    @Resource
+    private RedisClient redisClient;
+
+    @Override
+    public void confirm(CorrelationData correlationData, boolean ack, String cause) {
+        String id = correlationData.getId();
+        if (StringUtils.isEmpty(id)) {
+            return;
+        }
+        if (ack) {
+            redisClient.hdel(Constant.queue_key, id);
+        }
+    }
+
+}
+```
+
+##### 发送失败的消息job异步重试
+```
+@Override
+public void retry() {
+    Map<String, String> keyMap = redisClient.hgetAll(Constant.queue_key);
+    if (MapExtensions.isEmpty(keyMap)) {
+        return;
+    }
+    keyMap.forEach((id, value) -> {
+        MessageData data = JsonHelper.deSerialize(value, MessageData.class);
+        if (System.currentTimeMillis() - data.getCurrTime() > 5 * 60 * 1000) {
+            MessageQueueErrorRecord log = new MessageQueueErrorRecord();
+            log.setBeanName(data.getBeanName());
+            log.setErrorDesc("");
+            log.setIsRePush(0);
+            log.setMsgBody(data.getJsonData());
+            log.setTypeDesc(data.getTypeDesc());
+            log.setOperatorId(BasicOperatorEnum.PROVIDER.getCode());
+            log.setTypeId(data.getTypeId());
+            log.setOriginalId(data.getOriginalId());
+            msgQueueErrorLogService.save(log);
+            redisClient.hdel(Constant.queue_key, id);
+        }
+    });
+}
+```
+
+##### 消费端100%消费
+> 处理失败消息统一入库
+```
+@Override
+public void consume(String msgBodyJson, int originalId, MessageProperties messageProperties) {
+    try {
+        logger.info("consume -> {}", msgBodyJson);
+        T obj = JsonHelper.deSerialize(msgBodyJson,
+                (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0]);
+        if (messageProperties == null || messageProperties.getCorrelationId() == null) {
+            consumeMessage(obj, messageProperties);
+            return;
+        }
+        String correlationId = new String(messageProperties.getCorrelationId(), Charset.defaultCharset());
+        if (StringUtils.isEmpty(correlationId)) {
+            consumeMessage(obj, messageProperties);
+            return;
+        }
+        if (exchangeType() == ExchangeType.TOPIC || exchangeType() == ExchangeType.FANOUT) {
+            consumeMessage(obj, messageProperties);
+            return;
+        }
+        String lockKey = "lock." + correlationId;
+        boolean isLock = RedisLockUtil.lock(lockKey, correlationId, 60);
+        if (isLock) {
+            try {
+                consumeMessage(obj, messageProperties);
+            } finally {
+                RedisLockUtil.unLock(lockKey, correlationId);
+            }
+        } else {
+            new RuntimeException("重复消费");
+        }
+    } catch (Throwable e) {
+        exceptionHandle(new MsgQueueBody(BasicOperatorEnum.CONSUMER, msgBodyJson), e, false, originalId);
+    }
+}
+
+private void exceptionHandle(MsgQueueBody msg, Throwable throwable, boolean isAsync, int originalId) {
+    logger.error(getMessageDesc() + "|" + msg.getMsgQueueBody(), throwable);
+    MessageQueueErrorRecord log = new MessageQueueErrorRecord();
+    log.setMsgBody(msg.getMsgQueueBody());
+    log.setErrorDesc(DBStringUtil.subString(throwable.getMessage(), 1500));
+    log.setOperatorId(msg.getBasicOperatorEnum().getCode());
+    String beanName = getSpringBeanName();
+    log.setBeanName(beanName);
+    log.setTypeId(getMessageType());
+    log.setTypeDesc(StringUtils.defaultString(getMessageDesc(), ""));
+    log.setOriginalId(originalId);
+    logger.info("dbLog -> {}", JsonHelper.serialize(log));
+    if (isAsync) {
+        rabbitProductExecutor.submit(() -> saveLog(log));
+    } else {
+        saveLog(log);
+    }
+}
+```
+
+##### 异常消息重试
+```
+private void rePush(MessageQueueErrorRecord record) {
+    int id = record.getOriginalId();
+    if (!IntegerExtensions.isMoreThanZero(record.getOriginalId())) {
+        id = record.getId();
+    }
+    if (!check(id)) {
+        return;
+    }
+    AbstractMsgQueueService messageQueueService =
+            (AbstractMsgQueueService) msgQueueFactory.getMsgQueueService(record);
+    messageQueueService.consume(record.getMsgBody(), id);
+    record.setIsRePush(1);
+    msgQueueErrorLogService.update(record);
+}
+
+private boolean check(int id) {
+    String key = getRedisKey(id);
+    Long increment = redisClient.increment(key, 1L, 24 * 60 * 60);
+    return increment == null || increment.longValue() <= 3;
+}
+
+private String getRedisKey(int id) {
+    return "message.queue.consume.limit"
+            + "." + LocalDateUtil.format(new Date(), "yyyyMMdd")
+            + "#" + id;
+}
+```
+
+##### 配置自动注入监听
+```
+@PostConstruct
+public void autoRegistry() {
+    if (!isAutoRegistry()) {
+        return;
+    }
+    DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) SpringUtils.getBeanFactory();
+    ConnectionFactory connectionFactory = (ConnectionFactory) beanFactory.getBean("basicConnectionFactory");
+    RabbitAdmin rabbitAdmin = (RabbitAdmin) beanFactory.getBean("basicRabbitAdmin");
+    DynamicConsumer consumer = null;
+    try {
+        DynamicConsumerContainerFactory fac = DynamicConsumerContainerFactory.builder()
+                .exchangeType(exchangeType())
+                .exchangeName(getExchangeName())
+                .queue(getQueueName())
+                .autoDeleted(false)
+                .autoAck(true)
+                .durable(true)
+                .routingKey(getRoutingKey())
+                .rabbitAdmin(rabbitAdmin)
+                .connectionFactory(connectionFactory).build();
+        consumer = new DynamicConsumer(fac, this);
+    } catch (Exception e) {
+        logger.error("系统异常", e);
+    }
+    customizeDynamicConsumerContainer.put(getQueueName(), consumer);
+    if (isOpenListener()) {
+        consumer.start();
     }
 }
 ```
