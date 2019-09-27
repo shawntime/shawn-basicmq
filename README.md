@@ -83,7 +83,7 @@ public class SmsMsgQueueService extends AbstractMsgQueueService<SmsEntity> {
 ```
 static final String SCAN_PACKAGE = "com.shawntime.provider.dao.mapper." + DB_TGA + ",com.shawntime.basic.dao";
 Resource[] locationResources = resolver.getResources(mapperLocations);
-Resource[] mqResources = resolver.getResources("classpath:mapper/basicmq/MsgQueueErrorLogMapper.xml");
+Resource[] mqResources = resolver.getResources("classpath:mapper/basicmq/MessageQueueErrorLogMapper.xml");
 List<Resource> resources = new ArrayList<>(locationResources.length + mqResources.length);
 resources.addAll(Arrays.asList(locationResources));
 resources.addAll(Arrays.asList(mqResources));
