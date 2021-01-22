@@ -16,6 +16,8 @@ public class MessageData {
 
     private int originalId;
 
+    private int appId;
+
     public String getId() {
         return id;
     }
@@ -70,5 +72,13 @@ public class MessageData {
 
     public void setOriginalId(int originalId) {
         this.originalId = originalId;
+    }
+
+    public int getAppId() {
+        return appId;
+    }
+
+    public void setAppId(int appId) {
+        this.appId = appId;
     }
 }

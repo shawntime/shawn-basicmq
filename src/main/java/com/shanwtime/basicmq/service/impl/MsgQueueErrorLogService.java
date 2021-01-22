@@ -30,37 +30,37 @@ public class MsgQueueErrorLogService implements IMsgQueueErrorLogService {
     }
 
     @Override
-    public int modifyStatusById(int id, int isRePush) {
-        return messageQueueErrorRecordMapper.updateById(id, isRePush);
+    public int modifyStatusById(int id, int isRePush, int appId) {
+        return messageQueueErrorRecordMapper.updateById(id, isRePush, appId);
     }
 
     @Override
-    public int modifyStatusByIds(List<Integer> ids, int isRePush) {
-        return messageQueueErrorRecordMapper.updateByIds(ids, isRePush);
+    public int modifyStatusByIds(List<Integer> ids, int isRePush, int appId) {
+        return messageQueueErrorRecordMapper.updateByIds(ids, isRePush, appId);
     }
 
     @Override
-    public int modifyStatusByTypeId(int typeId, int isRePush) {
-        return messageQueueErrorRecordMapper.updateByTyped(typeId, isRePush);
+    public int modifyStatusByTypeId(int typeId, int isRePush, int appId) {
+        return messageQueueErrorRecordMapper.updateByTypeId(typeId, isRePush, appId);
     }
 
     @Override
-    public MessageQueueErrorRecord getById(int id) {
-        return messageQueueErrorRecordMapper.getById(id);
+    public MessageQueueErrorRecord getById(int id, int appId) {
+        return messageQueueErrorRecordMapper.getById(id, appId);
     }
 
     @Override
-    public List<MessageQueueErrorRecord> getByTypeId(int typeId) {
-        return messageQueueErrorRecordMapper.getByTypeId(typeId);
+    public List<MessageQueueErrorRecord> getByTypeId(int typeId, int appId) {
+        return messageQueueErrorRecordMapper.getByTypeId(typeId, appId);
     }
 
     @Override
-    public List<MessageQueueErrorRecord> getByTypeIds(List<Integer> typeIds) {
-        return messageQueueErrorRecordMapper.getByTypeIds(typeIds);
+    public List<MessageQueueErrorRecord> getByTypeIds(List<Integer> typeIds, int appId) {
+        return messageQueueErrorRecordMapper.getByTypeIds(typeIds, appId);
     }
 
     @Override
-    public List<MessageQueueErrorRecord> getAll() {
-        return messageQueueErrorRecordMapper.getAll();
+    public List<MessageQueueErrorRecord> getAll(int appId) {
+        return messageQueueErrorRecordMapper.getAll(appId);
     }
 }

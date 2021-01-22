@@ -14,21 +14,19 @@ public interface MessageQueueErrorRecordMapper {
 
     int update(MessageQueueErrorRecord messageQueueErrorRecord);
 
-    MessageQueueErrorRecord getById(@Param("id") int id);
+    MessageQueueErrorRecord getById(@Param("id") int id, @Param("appId") int appId);
 
-    List<MessageQueueErrorRecord> getByIds(List<Integer> ids);
+    List<MessageQueueErrorRecord> getByIds(@Param("ids")List<Integer> ids, @Param("appId") int appId);
 
-    List<MessageQueueErrorRecord> getByTypeId(@Param("typeId") int typeId);
+    List<MessageQueueErrorRecord> getByTypeId(@Param("typeId") int typeId, @Param("appId") int appId);
 
-    List<MessageQueueErrorRecord> getByTypeIds(List<Integer> typeIds);
+    List<MessageQueueErrorRecord> getByTypeIds(@Param("typeIds") List<Integer> typeIds, @Param("appId") int appId);
 
-    List<MessageQueueErrorRecord> getAll();
+    List<MessageQueueErrorRecord> getAll(@Param("appId") int appId);
 
-    int updateById(@Param("id") int id, @Param("isRePush") int isRePush);
+    int updateById(@Param("id") int id, @Param("isRePush") int isRePush, @Param("appId") int appId);
 
-    int updateByIds(@Param("ids") List<Integer> ids, @Param("isRePush") int isRePush);
+    int updateByIds(@Param("ids") List<Integer> ids, @Param("isRePush") int isRePush, @Param("appId") int appId);
 
-    int updateByTyped(@Param("typeId") int typeId, @Param("isRePush") int isRePush);
-
-    int updateByTypeds(@Param("typeIds") List<Integer> typeIds, @Param("isRePush") int isRePush);
+    int updateByTypeId(@Param("typeId") int typeId, @Param("isRePush") int isRePush, @Param("appId") int appId);
 }

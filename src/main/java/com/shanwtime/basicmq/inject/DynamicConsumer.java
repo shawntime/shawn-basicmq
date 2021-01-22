@@ -2,6 +2,7 @@ package com.shanwtime.basicmq.inject;
 
 import com.shanwtime.basicmq.service.impl.AbstractMsgQueueService;
 import com.rabbitmq.client.Channel;
+import com.shanwtime.basicmq.utils.JsonHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -14,7 +15,7 @@ public class DynamicConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(DynamicConsumer.class);
     private SimpleMessageListenerContainer container;
-    
+
     private MessageConverter msgConverter = new Jackson2JsonMessageConverter();
 
     public DynamicConsumer(DynamicConsumerContainerFactory fac,
@@ -33,17 +34,23 @@ public class DynamicConsumer {
         this.container = container;
     }
 
-    //启动消费者监听
+    /**
+     * 启动消费者监听
+     */
     public void start() {
         container.start();
     }
 
-    //消费者停止监听
+    /**
+     * 消费者停止监听
+     */
     public void stop() {
         container.stop();
     }
 
-    //消费者重启
+    /**
+     * 消费者重启
+     */
     public void shutdown() {
         container.shutdown();
     }
@@ -54,8 +61,15 @@ public class DynamicConsumer {
     public void distributionConsumerMsg(Message message,
                                         Channel channel,
                                         AbstractMsgQueueService msgQueueService) {
-        Object msg = msgConverter.fromMessage(message);
+
+        Object object = msgConverter.fromMessage(message);
+        String msg;
+        if (object instanceof String) {
+            msg = object.toString();
+        } else {
+            msg = JsonHelper.serialize(object);
+        }
         MessageProperties messageProperties = message.getMessageProperties();
-        msgQueueService.consume(msg.toString(), messageProperties);
+        msgQueueService.consume(msg, messageProperties);
     }
 }

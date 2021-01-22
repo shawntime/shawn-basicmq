@@ -15,6 +15,9 @@ import com.shanwtime.basicmq.utils.JsonHelper;
 import com.shanwtime.basicmq.utils.LocalDateUtil;
 import com.shanwtime.basicmq.utils.MapExtensions;
 import org.apache.commons.collections4.CollectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,6 +27,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class MsgQueueManageService implements IMsgQueueManageService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MsgQueueManageService.class);
 
     @Resource
     private IMsgQueueErrorLogService msgQueueErrorLogService;
@@ -34,54 +38,67 @@ public class MsgQueueManageService implements IMsgQueueManageService {
     @Resource
     private MsgQueueFactory msgQueueFactory;
 
+    @Value("${spring.rabbitmq.basic.appId:0}")
+    private int appId;
+
     @Override
     public void reProvideById(int id) {
-        MessageQueueErrorRecord record = msgQueueErrorLogService.getById(id);
+        MessageQueueErrorRecord record = msgQueueErrorLogService.getById(id, appId);
         if (record == null) {
             return;
         }
+
         rePush(record);
     }
 
     @Override
     public void reProvideByIds(List<Integer> ids) {
-        ids.forEach(id -> reProvideById(id));
+        ids.forEach(this::reProvideById);
     }
 
     @Override
     public void reProvideByTypeIds(int typeId) {
-        List<MessageQueueErrorRecord> records = msgQueueErrorLogService.getByTypeId(typeId);
+        List<MessageQueueErrorRecord> records = msgQueueErrorLogService.getByTypeId(typeId, appId);
         if (CollectionUtils.isEmpty(records)) {
             return;
         }
-        records.forEach(mq -> rePush(mq));
+
+        records.forEach(this::rePush);
     }
 
     @Override
     public void reProvideByTypeIds(List<Integer> typeIds) {
-        List<MessageQueueErrorRecord> records = msgQueueErrorLogService.getByTypeIds(typeIds);
-        records.forEach(mq -> rePush(mq));
+        List<MessageQueueErrorRecord> records = msgQueueErrorLogService.getByTypeIds(typeIds, appId);
+        if (CollectionUtils.isEmpty(records)) {
+            return;
+        }
+
+        records.forEach(this::rePush);
     }
 
     @Override
     public void reProvide() {
-        List<MessageQueueErrorRecord> records = msgQueueErrorLogService.getAll();
-        records.forEach(mq -> rePush(mq));
+        List<MessageQueueErrorRecord> records = msgQueueErrorLogService.getAll(appId);
+        if (CollectionUtils.isEmpty(records)) {
+            return;
+        }
+
+        records.forEach(this::rePush);
     }
 
     @Override
     public void modifyStatusById(int id, int isRePush) {
-        msgQueueErrorLogService.modifyStatusById(id, isRePush);
+        msgQueueErrorLogService.modifyStatusById(id, isRePush, appId);
     }
 
     @Override
     public void modifyStatusById(List<Integer> ids, int isRePush) {
-        msgQueueErrorLogService.modifyStatusByIds(ids, isRePush);
+        msgQueueErrorLogService.modifyStatusByIds(ids, isRePush, appId);
     }
 
     @Override
     public void modifyStatusByTypeId(int typeId, int isRePush) {
-        msgQueueErrorLogService.modifyStatusByTypeId(typeId, isRePush);
+        msgQueueErrorLogService.modifyStatusByTypeId(typeId, isRePush, appId);
     }
 
     @Override
@@ -107,7 +124,9 @@ public class MsgQueueManageService implements IMsgQueueManageService {
                 log.setOperatorId(BasicOperatorEnum.PROVIDER.getCode());
                 log.setTypeId(data.getTypeId());
                 log.setOriginalId(data.getOriginalId());
+                log.setAppId(data.getAppId());
                 msgQueueErrorLogService.save(log);
+                LOGGER.error("MQ生产端5分钟内未收到ack，消息落库：log -> {}", JsonHelper.serialize(log));
                 redisClient.hdel(Constant.queue_key, id);
             }
         });
@@ -201,7 +220,7 @@ public class MsgQueueManageService implements IMsgQueueManageService {
         }
         AbstractMsgQueueService messageQueueService =
                 (AbstractMsgQueueService) msgQueueFactory.getMsgQueueService(record);
-        messageQueueService.consume(record.getMsgBody(), id);
+        messageQueueService.provide(record.getMsgBody(), id);
         record.setIsRePush(1);
         msgQueueErrorLogService.update(record);
     }

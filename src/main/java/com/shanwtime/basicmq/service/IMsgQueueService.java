@@ -13,9 +13,13 @@ public interface IMsgQueueService {
 
     void provide(String msgBodyJson, boolean isAsync);
 
+    void provide(String msgBodyJson, int originalId);
+
     void provide(String msgBodyJson, Map<String, Object> headMap);
 
     void provide(String msgBodyJson, boolean isAsync, Map<String, Object> headMap);
+
+    void provide(String msgBodyJson, boolean isAsync, Map<String, Object> headMap, int originalId);
 
     void consume(String msgBodyJson);
 

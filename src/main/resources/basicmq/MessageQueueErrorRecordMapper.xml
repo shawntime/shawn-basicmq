@@ -14,7 +14,8 @@
             msg_body,
             error_desc,
             bean_name,
-            original_id
+            original_id,
+            appId
             )
         VALUES (
             #{operatorId},
@@ -23,7 +24,8 @@
             #{msgBody},
             #{errorDesc},
             #{beanName},
-            #{originalId}
+            #{originalId},
+            #{appId}
         )
     </insert>
 
@@ -50,6 +52,7 @@
         <include refid="condition" />
         AND is_re_push = 0
         AND id = #{id}
+        AND appId = #{appId}
     </select>
 
     <select id="getByIds" resultType="com.shanwtime.basicmq.entity.MessageQueueErrorRecord">
@@ -57,9 +60,10 @@
         <include refid="condition" />
         AND is_re_push = 0
         AND id IN
-        <foreach collection="list" item="id" open="(" close=")" separator=",">
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
             #{id}
         </foreach>
+        AND appId = #{appId}
     </select>
 
     <select id="getByTypeId" resultType="com.shanwtime.basicmq.entity.MessageQueueErrorRecord">
@@ -68,6 +72,7 @@
         <include refid="condition" />
         AND is_re_push = 0
         AND type_id = #{typeId}
+        AND appId = #{appId}
     </select>
 
     <sql id="condition">
@@ -91,19 +96,21 @@
         <include refid="condition" />
         AND is_re_push = 0
         AND type_id IN
-        <foreach collection="list" item="typeId" open="(" close=")" separator=",">
+        <foreach collection="typeIds" item="typeId" open="(" close=")" separator=",">
             #{typeId}
         </foreach>
+        AND appId = #{appId}
     </select>
 
     <select id="getAll" resultType="com.shanwtime.basicmq.entity.MessageQueueErrorRecord">
         SELECT
         <include refid="condition" />
         AND is_re_push = 0
+        AND appId = #{appId}
     </select>
 
     <update id="updateById">
-        UPDATE MessageQueueErrorRecord SET is_re_push = #{isRePush} WHERE id = #{id}
+        UPDATE MessageQueueErrorRecord SET is_re_push = #{isRePush} WHERE id = #{id} AND appId = #{appId}
     </update>
 
     <update id="updateByIds">
@@ -112,10 +119,11 @@
         <foreach collection="ids" separator="," open="(" close=")" item="id">
             #{id}
         </foreach>
+        AND appId = #{appId}
     </update>
 
     <update id="updateByTypeId">
-        UPDATE MessageQueueErrorRecord SET is_re_push = #{isRePush} WHERE type_id = #{typeId}
+        UPDATE MessageQueueErrorRecord SET is_re_push = #{isRePush} WHERE type_id = #{typeId} AND appId = #{appId}
     </update>
 
     <update id="updateByTypeIds">

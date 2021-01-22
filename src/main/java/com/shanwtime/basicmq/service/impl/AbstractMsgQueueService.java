@@ -63,6 +63,9 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
     @Value("${spring.rabbitmq.basic.isOpenListener:false}")
     private boolean isOpenListener;
 
+    @Value("${spring.rabbitmq.basic.appId:0}")
+    private int appId;
+
     private static final Logger logger = LoggerFactory.getLogger(AbstractMsgQueueService.class);
 
     @Override
@@ -76,23 +79,34 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
     }
 
     @Override
+    public void provide(String msgBodyJson, int originalId) {
+        provide(msgBodyJson, false, null, originalId);
+    }
+
+    @Override
     public void provide(String msgBodyJson, Map headMap) {
         provide(msgBodyJson, false, headMap);
     }
 
     @Override
     public void provide(String msgBodyJson, boolean isAsync, Map headMap) {
+        provide(msgBodyJson, isAsync, headMap, 0);
+    }
+
+    @Override
+    public void provide(String msgBodyJson, boolean isAsync, Map<String, Object> headMap, int originalId) {
         try {
             logger.info("provide -> {}", msgBodyJson);
             String correlationDataId = "";
-            if (isConfirmCallBack()) {
-                MessageData data = getMessageData(msgBodyJson);
+            // 必须自动注册的才允许接收回调
+            if (isAutoRegistry() && isConfirmCallBack()) {
+                MessageData data = getMessageData(msgBodyJson, originalId);
                 redisClient.hset(Constant.queue_key, data.getId(), JsonHelper.serialize(data), -1);
                 correlationDataId = data.getId();
             }
             provideMessage(msgBodyJson, correlationDataId, headMap);
         } catch (Throwable e) {
-            exceptionHandle(new MsgQueueBody(BasicOperatorEnum.PROVIDER, msgBodyJson), e, isAsync);
+            exceptionHandle(new MsgQueueBody(BasicOperatorEnum.PROVIDER, msgBodyJson), e, isAsync, originalId);
         }
     }
 
@@ -157,6 +171,7 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
         log.setTypeId(getMessageType());
         log.setTypeDesc(StringUtils.defaultString(getMessageDesc(), ""));
         log.setOriginalId(originalId);
+        log.setAppId(appId);
         logger.info("dbLog -> {}", JsonHelper.serialize(log));
         if (isAsync) {
             rabbitProductExecutor.submit(() -> saveLog(log));
@@ -165,11 +180,7 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
         }
     }
 
-    private void exceptionHandle(MsgQueueBody msg, Throwable throwable, boolean isAsync) {
-        exceptionHandle(msg, throwable, isAsync, 0);
-    }
-
-    private MessageData getMessageData(String msgBodyJson) {
+    private MessageData getMessageData(String msgBodyJson, int originalId) {
         String id = UUID.randomUUID().toString();
         MessageData data = new MessageData();
         data.setCurrTime(System.currentTimeMillis());
@@ -177,8 +188,9 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
         data.setJsonData(msgBodyJson);
         data.setTypeDesc(getMessageDesc());
         data.setTypeId(getMessageType());
-        data.setOriginalId(0);
+        data.setOriginalId(originalId);
         data.setBeanName(getSpringBeanName());
+        data.setAppId(appId);
         return data;
     }
 

@@ -13,17 +13,17 @@ public interface IMsgQueueErrorLogService {
 
     int update(MessageQueueErrorRecord messageQueueErrorRecord);
 
-    int modifyStatusById(int id, int isRePush);
+    int modifyStatusById(int id, int isRePush, int appId);
 
-    int modifyStatusByIds(List<Integer> ids, int isRePush);
+    int modifyStatusByIds(List<Integer> ids, int isRePush, int appId);
 
-    int modifyStatusByTypeId(int typeId, int isRePush);
+    int modifyStatusByTypeId(int typeId, int isRePush, int appId);
 
-    MessageQueueErrorRecord getById(int id);
+    MessageQueueErrorRecord getById(int id, int appId);
 
-    List<MessageQueueErrorRecord> getByTypeId(int typeId);
+    List<MessageQueueErrorRecord> getByTypeId(int typeId, int appId);
 
-    List<MessageQueueErrorRecord> getByTypeIds(List<Integer> typeIds);
+    List<MessageQueueErrorRecord> getByTypeIds(List<Integer> typeIds, int appId);
 
-    List<MessageQueueErrorRecord> getAll();
+    List<MessageQueueErrorRecord> getAll(int appId);
 }

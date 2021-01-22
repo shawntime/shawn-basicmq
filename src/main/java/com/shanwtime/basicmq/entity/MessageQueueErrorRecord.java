@@ -26,6 +26,8 @@ public class MessageQueueErrorRecord {
 
     private Integer originalId;
 
+    private Integer appId;
+
     public int getId() {
         return id;
     }
@@ -104,5 +106,13 @@ public class MessageQueueErrorRecord {
 
     public void setOriginalId(Integer originalId) {
         this.originalId = originalId;
+    }
+
+    public Integer getAppId() {
+        return appId;
+    }
+
+    public void setAppId(Integer appId) {
+        this.appId = appId;
     }
 }
