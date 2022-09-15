@@ -44,7 +44,7 @@
         <freemarker.version>2.3.23</freemarker.version>
         <guava.version>18.0</guava.version>
 
-        <commons-io.version>2.4</commons-io.version>
+        <commons-io.version>2.7</commons-io.version>
         <aspectjlib.version>1.6.2</aspectjlib.version>
         <aspectjweaver.version>1.8.6</aspectjweaver.version>
         <drewnoakes.version>2.8.1</drewnoakes.version>
