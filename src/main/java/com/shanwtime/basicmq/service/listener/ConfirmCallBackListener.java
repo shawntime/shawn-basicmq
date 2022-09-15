@@ -6,7 +6,7 @@ import com.shanwtime.basicmq.redis.RedisClient;
 import com.shanwtime.basicmq.service.impl.Constant;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.support.CorrelationData;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.stereotype.Component;
 
 @Component("confirmCallBackListener")

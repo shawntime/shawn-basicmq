@@ -1,7 +1,6 @@
 package com.shanwtime.basicmq.service.impl;
 
 import java.lang.reflect.ParameterizedType;
-import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.UUID;
 import javax.annotation.PostConstruct;
@@ -11,6 +10,7 @@ import javax.annotation.Resource;
 import com.shanwtime.basicmq.entity.MessageQueueErrorRecord;
 import com.shanwtime.basicmq.entity.MsgQueueBody;
 import com.shanwtime.basicmq.enums.BasicOperatorEnum;
+import com.shanwtime.basicmq.enums.MessageStorageSourceEnum;
 import com.shanwtime.basicmq.inject.CustomizeDynamicConsumerContainer;
 import com.shanwtime.basicmq.inject.DynamicConsumer;
 import com.shanwtime.basicmq.inject.DynamicConsumerContainerFactory;
@@ -30,8 +30,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
-import org.springframework.amqp.rabbit.support.CorrelationData;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -67,6 +67,11 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
     private int appId;
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractMsgQueueService.class);
+
+    @Override
+    public void provide(Object msgBody) {
+        provide(JsonHelper.serialize(msgBody));
+    }
 
     @Override
     public void provide(String msgBodyJson) {
@@ -127,15 +132,16 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
 
     @Override
     public void consume(String msgBodyJson, int originalId, MessageProperties messageProperties) {
+        T obj = null;
         try {
             logger.info("consume -> {}", msgBodyJson);
-            T obj = JsonHelper.deSerialize(msgBodyJson,
+            obj = JsonHelper.deSerialize(msgBodyJson,
                     (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0]);
             if (messageProperties == null || messageProperties.getCorrelationId() == null) {
                 consumeMessage(obj, messageProperties);
                 return;
             }
-            String correlationId = new String(messageProperties.getCorrelationId(), Charset.defaultCharset());
+            String correlationId = messageProperties.getCorrelationId();
             if (StringUtils.isEmpty(correlationId)) {
                 consumeMessage(obj, messageProperties);
                 return;
@@ -156,8 +162,20 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
                 new RuntimeException("重复消费");
             }
         } catch (Throwable e) {
-            exceptionHandle(new MsgQueueBody(BasicOperatorEnum.CONSUMER, msgBodyJson), e, false, originalId);
+            exceptionHandle(new MsgQueueBody(BasicOperatorEnum.CONSUMER, getMsgBodyJson(msgBodyJson, obj)), e, false, originalId);
         }
+    }
+
+    private String getMsgBodyJson(String msgBodyJson, T object) {
+        MessageStorageSourceEnum messageStorageSourceEnum = messageStorageSourceEnum();
+        if (messageStorageSourceEnum == MessageStorageSourceEnum.MODIFIED && object != null) {
+            if (object instanceof String) {
+                return object.toString();
+            } else {
+                return JsonHelper.serialize(object);
+            }
+        }
+        return msgBodyJson;
     }
 
     private void exceptionHandle(MsgQueueBody msg, Throwable throwable, boolean isAsync, int originalId) {
@@ -226,6 +244,10 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
         return getSpringBeanName();
     }
 
+    protected MessageStorageSourceEnum messageStorageSourceEnum() {
+        return MessageStorageSourceEnum.ORIGINAL;
+    }
+
     protected void provideMessage(String msgBodyJson) throws Throwable {
         throw new UnsupportedOperationException();
     }
@@ -251,7 +273,7 @@ public abstract class AbstractMsgQueueService<T> implements IMsgQueueService {
                     messageProperties.setHeader(key, value);
                 });
             }
-            messageProperties.setCorrelationId(correlationDataId.getBytes());
+            messageProperties.setCorrelationId(correlationDataId);
             return message;
         };
         amqpProducer.publishMsg(exchangeName, queueName, msgBodyJson,

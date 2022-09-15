@@ -65,7 +65,7 @@ public class DynamicConsumerContainerFactory implements FactoryBean<SimpleMessag
 
 
     private Binding bind(Queue queue, Exchange exchange) {
-        return exchangeType.binding(queue, exchange, routingKey);
+        return ExchangeType.binding(queue, exchange, routingKey);
     }
 
     @Override
@@ -82,7 +82,7 @@ public class DynamicConsumerContainerFactory implements FactoryBean<SimpleMessag
         rabbitAdmin.declareBinding(binding);
 
         SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
-        container.setRabbitAdmin(rabbitAdmin);
+        container.setAmqpAdmin(rabbitAdmin);
         container.setConnectionFactory(connectionFactory);
         container.setQueues(queue);
         container.setPrefetchCount(1);

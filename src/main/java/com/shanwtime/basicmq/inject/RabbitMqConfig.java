@@ -8,9 +8,9 @@ import com.shanwtime.basicmq.service.listener.ReturnCallBackListener;
 import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.support.CorrelationData;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,10 +33,10 @@ public class RabbitMqConfig {
 
     @Bean(name = "basicConnectionFactory")
     public ConnectionFactory basicConnectionFactory(@Value("${spring.rabbitmq.basic.host}") String host,
-                                                   @Value("${spring.rabbitmq.basic.port}") int port,
-                                                   @Value("${spring.rabbitmq.basic.username}") String username,
-                                                   @Value("${spring.rabbitmq.basic.password}") String password,
-                                                   @Value("${spring.rabbitmq.basic.vhost}") String vhost) {
+                                                    @Value("${spring.rabbitmq.basic.port}") int port,
+                                                    @Value("${spring.rabbitmq.basic.username}") String username,
+                                                    @Value("${spring.rabbitmq.basic.password}") String password,
+                                                    @Value("${spring.rabbitmq.basic.vhost}") String vhost) {
         CachingConnectionFactory connectionFactory = getCachingConnectionFactory(host, port, username, password, vhost);
         connectionFactory.setChannelCacheSize(25);
         connectionFactory.setRequestedHeartBeat(10);
@@ -61,10 +61,10 @@ public class RabbitMqConfig {
     }
 
     @Bean
-    public AmqpProducer amqpProducer(@Qualifier("basicConnectionFactory") ConnectionFactory connectionFactory,
-                                              @Qualifier("confirmCallBackListener") ConfirmCallBackListener confirmCallBackListener,
-                                              @Qualifier("returnCallBackListener") ReturnCallBackListener returnCallBackListener) {
-        return new AmqpProducer(connectionFactory, confirmCallBackListener, returnCallBackListener);
+    public RabbitMqConfig.AmqpProducer amqpProducer(@Qualifier("basicConnectionFactory") ConnectionFactory connectionFactory,
+                                                    @Qualifier("confirmCallBackListener") ConfirmCallBackListener confirmCallBackListener,
+                                                    @Qualifier("returnCallBackListener") ReturnCallBackListener returnCallBackListener) {
+        return new RabbitMqConfig.AmqpProducer(connectionFactory, confirmCallBackListener, returnCallBackListener);
     }
 
     public class AmqpProducer {

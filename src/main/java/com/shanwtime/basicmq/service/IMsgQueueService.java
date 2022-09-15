@@ -9,6 +9,8 @@ import org.springframework.amqp.core.MessageProperties;
  */
 public interface IMsgQueueService {
 
+    void provide(Object msgBody);
+
     void provide(String msgBodyJson);
 
     void provide(String msgBodyJson, boolean isAsync);
